@@ -6,6 +6,21 @@ from typing import Dict, List
 from tqdm import tqdm
 import re
 
+image_ids_dict = {}
+image_counter = 0
+
+def get_imageid_by_filename(filename: str) -> int:
+    global image_counter, image_ids_dict
+
+    img_id = image_ids_dict.get(filename)
+
+    if img_id is None:
+        img_id = image_counter
+        image_ids_dict[filename] = img_id
+        image_counter += 1
+
+    return img_id
+
 
 def get_label2id(labels_path: str) -> Dict[str, int]:
     """id is 1 start"""
@@ -33,16 +48,21 @@ def get_annpaths(ann_dir_path: str = None,
     return ann_paths
 
 
-def get_image_info(annotation_root, extract_num_from_imgid=True):
+def get_image_info(annotation_root, extract_imageid_from_filename=True):
     path = annotation_root.findtext('path')
     if path is None:
         filename = annotation_root.findtext('filename')
     else:
         filename = os.path.basename(path)
+
     img_name = os.path.basename(filename)
     img_id = os.path.splitext(img_name)[0]
-    if extract_num_from_imgid and isinstance(img_id, str):
+
+    if extract_imageid_from_filename and isinstance(img_id, str):
         img_id = int(re.findall(r'\d+', img_id)[0])
+
+    if not extract_imageid_from_filename or isinstance(img_id, str):
+        img_id = get_imageid_by_filename(img_id)
 
     size = annotation_root.find('size')
     width = int(size.findtext('width'))
@@ -98,7 +118,7 @@ def convert_xmls_to_cocojson(annotation_paths: List[str],
         ann_root = ann_tree.getroot()
 
         img_info = get_image_info(annotation_root=ann_root,
-                                  extract_num_from_imgid=extract_num_from_imgid)
+                                  extract_imageid_from_filename=extract_num_from_imgid)
         img_id = img_info['id']
         output_json_dict['images'].append(img_info)
 
